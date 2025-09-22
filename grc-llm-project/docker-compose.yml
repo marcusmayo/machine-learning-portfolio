@@ -1,0 +1,13 @@
+services:
+  grc-app:
+    build: .
+    container_name: grc-compliance-app
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    environment:
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_ENABLE_CORS=false
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+    volumes:
+      - ./outputs:/app/outputs:ro

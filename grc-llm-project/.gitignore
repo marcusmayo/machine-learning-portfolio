@@ -1,0 +1,20 @@
+# Large model files
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.tar.gz
+
+# Python
+__pycache__/
+*.pyc
+venv/
+grc-env/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.log
+
+# Exclude outputs directory entirely
+outputs/

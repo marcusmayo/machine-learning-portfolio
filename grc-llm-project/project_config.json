@@ -1,0 +1,9 @@
+{
+  "bucket_name": "grc-compliance-data-1756738456",
+  "project": "GRC_Compliance_LLM",
+  "model": "TinyLlama-1.1B-Chat-v1.0",
+  "method": "QLoRA fine-tuning",
+  "use_case": "SOC2/ISO27001/HIPAA compliance chatbot",
+  "region": "us-east-1",
+  "created": "2025-09-01 14:54:17"
+}
