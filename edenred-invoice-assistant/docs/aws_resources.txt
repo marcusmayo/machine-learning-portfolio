@@ -1,0 +1,6 @@
+# My AWS Resources
+
+Lambda URL: https://zg4ja3aub5lvqzsbomo7nrhw7m0rjqms.lambda-url.us-east-1.on.aws/
+SageMaker Endpoint: huggingface-cpu-1755487898
+S3 Bucket: edenred-invoice-data-ab-20250817
+API Gateway: EdenRed-Chat-API-v2

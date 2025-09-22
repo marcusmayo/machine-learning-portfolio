@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edenred Invoice Assistant - Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #ff4757 0%, #c44569 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 50px 0;
+        }
+
+        .demo-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .demo-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .demo-card p {
+            opacity: 0.9;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: white;
+            color: #ff4757;
+            padding: 12px 24px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .conversation-demo {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+
+        .message {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .user-message {
+            background: rgba(255, 255, 255, 0.2);
+            text-align: right;
+        }
+
+        .bot-message {
+            background: rgba(255, 255, 255, 0.1);
+            text-align: left;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+
+        .feature {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .tech-stack {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .tech-tags {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .tech-tag {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Edenred Invoice Assistant</h1>
+            <p>An AI-powered chatbot that helps suppliers with invoice submission, payment status, and account management. Built with AWS SageMaker, Lambda, and modern web technologies.</p>
+        </div>
+
+        <div class="demo-grid">
+            <div class="demo-card">
+                <h3>🚀 Try Live Demo</h3>
+                <p>Experience the full chatbot with real AI responses powered by AWS SageMaker and fine-tuned language models.</p>
+                <a href="chatbot.html" class="btn">Launch Chatbot</a>
+            </div>
+
+            <div class="demo-card">
+                <h3>📁 View Source Code</h3>
+                <p>Explore the complete codebase including model training, AWS deployment, and frontend implementation.</p>
+                <a href="https://github.com/marcusmayo/machine-learning-portfolio/tree/main/edenred-invoice-assistant" class="btn">View on GitHub</a>
+            </div>
+
+            <div class="demo-card">
+                <h3>📖 Read Documentation</h3>
+                <p>Learn about the architecture, deployment process, and technical implementation details.</p>
+                <a href="https://github.com/marcusmayo/machine-learning-portfolio/blob/main/edenred-invoice-assistant/README.md" class="btn">Read Docs</a>
+            </div>
+        </div>
+
+        <div class="conversation-demo">
+            <h3>💬 Sample Conversation</h3>
+            <div class="message user-message">
+                <strong>👤 You:</strong> How do I submit an invoice?
+            </div>
+            <div class="message bot-message">
+                <strong>🤖 Assistant:</strong> Log in to the supplier portal, navigate to Invoices → Create, enter the PO number (if applicable), upload your PDF or XML, review the preview, and click Submit.
+            </div>
+            <div class="message user-message">
+                <strong>👤 You:</strong> What is the typical approval turnaround time?
+            </div>
+            <div class="message bot-message">
+                <strong>🤖 Assistant:</strong> Standard approval takes 3–5 business days after a valid invoice is received. Complex three-way matches or disputes may extend this timeframe.
+            </div>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h4>Real-time Responses</h4>
+                <p>Sub-second AI responses powered by AWS SageMaker</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🛡️</div>
+                <h4>Robust Error Handling</h4>
+                <p>Fallback responses ensure 100% uptime</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📱</div>
+                <h4>Mobile Friendly</h4>
+                <p>Responsive design works on all devices</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎯</div>
+                <h4>95%+ Accuracy</h4>
+                <p>Trained on real support documentation</p>
+            </div>
+        </div>
+
+        <div class="tech-stack">
+            <h3>🛠️ Technology Stack</h3>
+            <div class="tech-tags">
+                <span class="tech-tag">AWS SageMaker</span>
+                <span class="tech-tag">AWS Lambda</span>
+                <span class="tech-tag">API Gateway</span>
+                <span class="tech-tag">Python</span>
+                <span class="tech-tag">HuggingFace</span>
+                <span class="tech-tag">JavaScript</span>
+                <span class="tech-tag">HTML/CSS</span>
+                <span class="tech-tag">CloudWatch</span>
+                <span class="tech-tag">S3</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add some interactive animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.demo-card');
+            
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(30px)';
+                
+                setTimeout(() => {
+                    card.style.transition = 'all 0.6s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 200);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_DB: carecopilot
+      POSTGRES_USER: carecopilot
+      POSTGRES_PASSWORD: demo123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carecopilot -d carecopilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    
+  carecopilot:
+    build: .
+    ports:
+      - "8501:8501"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://carecopilot:demo123@postgres:5432/carecopilot
+      PYTHONPATH: /app
+
+volumes:
+  postgres_data:

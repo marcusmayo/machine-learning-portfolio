@@ -1,0 +1,6 @@
+
+# System configuration files
+.docker/
+.bashrc
+.local/
+.rustup/

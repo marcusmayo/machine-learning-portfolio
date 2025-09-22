@@ -1,0 +1,63 @@
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Digital Value Chain Lite
+
+Parameters:
+  StripeSecretKey:
+    Type: String
+    Default: sk_test_xxx
+
+Resources:
+  OffersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Offers
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{AttributeName: sku, AttributeType: S}]
+      KeySchema: [{AttributeName: sku, KeyType: HASH}]
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Orders
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{AttributeName: orderId, AttributeType: S}]
+      KeySchema: [{AttributeName: orderId, KeyType: HASH}]
+
+  ApiFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: app.handler
+      Runtime: python3.11
+      MemorySize: 256
+      Timeout: 15
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OffersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+      Environment:
+        Variables:
+          OFFERS_TABLE: !Ref OffersTable
+          ORDERS_TABLE: !Ref OrdersTable
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+      Events:
+        OffersGet:
+          Type: HttpApi
+          Properties: { Path: /offers, Method: GET }
+        OffersPost:
+          Type: HttpApi
+          Properties: { Path: /offers, Method: POST }
+        Checkout:
+          Type: HttpApi
+          Properties: { Path: /checkout, Method: POST }
+        Webhook:
+          Type: HttpApi
+          Properties: { Path: /stripe/webhook, Method: POST }
+        AITriage:
+          Type: HttpApi
+          Properties: { Path: /ai/triage, Method: POST }
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"

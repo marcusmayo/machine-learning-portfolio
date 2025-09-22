@@ -1,0 +1,10 @@
+{
+  "deployment_status": "SUCCESS",
+  "endpoint_name": "fraud-detection-endpoint-1755128252",
+  "endpoint_status": "InService",
+  "instance_type": "ml.t2.medium",
+  "cost_per_hour": "$0.05",
+  "deployment_timestamp": "2025-08-13T23:06:51Z",
+  "model_registry": "fraud-detection-models",
+  "monitoring_dashboard": "FraudDetection-Production"
+}

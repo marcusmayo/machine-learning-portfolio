@@ -1,0 +1,41 @@
+# Virtual environments
+venv/
+env/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Models and runs
+*.pt
+*.pkl
+*.pth
+*.h5
+training_runs/
+mlruns/
+runs/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups
+*_backup*
+*_original*
+*.bak
+
+# Temporary scripts
+fix_*.sh
+fix_*.py
+test_*.sh

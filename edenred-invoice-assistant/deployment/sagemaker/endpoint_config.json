@@ -1,0 +1,6 @@
+{
+  "endpoint_name": "huggingface-cpu-1755487898",
+  "model_name": "edenred-invoice-model",
+  "instance_type": "ml.m5.large",
+  "initial_instance_count": 1
+}

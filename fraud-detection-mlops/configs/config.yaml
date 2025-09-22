@@ -1,0 +1,24 @@
+# MLOps Configuration
+project:
+  name: "fraud-detection-mlops"
+  version: "1.0.0"
+  description: "Production fraud detection system"
+
+aws:
+  region: "us-east-1"
+  bucket: "fraud-detection-project-js"
+  
+model:
+  algorithm: "xgboost"
+  framework_version: "1.7-1"
+  instance_type: "ml.m5.large"
+  
+monitoring:
+  dashboard_name: "FraudDetection-Production"
+  alerts_enabled: true
+  
+deployment:
+  endpoint_instance_type: "ml.t2.medium"
+  auto_scaling: false
+  min_capacity: 1
+  max_capacity: 3

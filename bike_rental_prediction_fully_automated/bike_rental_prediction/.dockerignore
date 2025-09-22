@@ -1,0 +1,43 @@
+# Virtual environment
+venv/
+env/
+.env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# MLflow temporary files
+mlartifacts/
+
+# Large model files
+models/*.pt
+models/*.pth
+
+# Git and IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Logs and temp files
+*.log
+serve.log
+nohup.out
+tmp/
+temp/
+
+# Documentation and tests
+README.md
+*.md
+*test*
+*Test*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Data backups
+data/*.zip
+data/*.bak

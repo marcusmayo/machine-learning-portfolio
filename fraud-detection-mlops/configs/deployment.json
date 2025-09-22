@@ -1,0 +1,17 @@
+{
+  "model_name": "fraud-detection-xgboost",
+  "endpoint_config": {
+    "instance_type": "ml.t2.medium",
+    "initial_instance_count": 1,
+    "variant_name": "primary"
+  },
+  "auto_scaling": {
+    "min_capacity": 1,
+    "max_capacity": 5,
+    "target_value": 70.0
+  },
+  "monitoring": {
+    "data_capture_percentage": 20,
+    "enable_cloudwatch": true
+  }
+}

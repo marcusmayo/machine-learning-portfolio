@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# AWS and SageMaker
+.aws/
+*.tar.gz
+model_artifacts/
+
+# Data files (keep samples only)
+*_fixed.csv
+train.csv
+valid.csv
+test.csv
+creditcard.csv
+
+# Logs and temporary files
+logs/*.log
+*.json.bak
+response.json
+temp_*
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
