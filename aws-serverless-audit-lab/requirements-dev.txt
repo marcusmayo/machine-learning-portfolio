@@ -1,0 +1,7 @@
+boto3==1.40.21
+botocore==1.40.21
+cfn-lint==1.39.1
+pytest==8.4.1
+pytest-cov==6.2.1
+PyYAML==6.0.2
+ruff==0.9.10

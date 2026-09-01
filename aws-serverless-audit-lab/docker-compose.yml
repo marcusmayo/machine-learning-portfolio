@@ -1,0 +1,15 @@
+services:
+  localstack:
+    image: localstack/localstack:4.8.1
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:?set LOCALSTACK_AUTH_TOKEN}
+      SERVICES: apigateway,cloudformation,dynamodb,events,iam,lambda,logs,s3,sns,sqs,stepfunctions,sts
+      DEBUG: "0"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  localstack-data:

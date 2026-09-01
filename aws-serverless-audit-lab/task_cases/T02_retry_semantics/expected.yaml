@@ -1,0 +1,6 @@
+decision: FAIL
+required_rule_ids: [SQS001, SQS002, SQS003]
+timing:
+  function_timeout_seconds: 20
+  minimum_visibility_seconds: 120
+  configured_visibility_seconds: 30

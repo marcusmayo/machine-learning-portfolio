@@ -1,0 +1,10 @@
+version = 0.1
+
+[sandbox.deploy.parameters]
+stack_name = "aws-serverless-audit-lab-sandbox"
+resolve_s3 = true
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+fail_on_empty_changeset = false
+parameter_overrides = "Environment=sandbox AllowedOrigin=https://example.invalid"
+tags = "Project=aws-serverless-audit-lab EvidenceLane=aws-canary"

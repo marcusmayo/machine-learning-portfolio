@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/aws-serverless-audit-report.schema.json",
+  "title": "AWS Serverless Audit Report",
+  "type": "object",
+  "required": ["schema_version", "source", "template_sha256", "decision", "score", "findings"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "source": {"type": "string"},
+    "template_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "decision": {"enum": ["PASS", "PASS_WITH_NOTES", "FAIL"]},
+    "score": {"type": "integer", "minimum": 0, "maximum": 100},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "severity", "title", "path", "evidence", "aws_behavior", "impact", "remediation", "verification"]
+      }
+    }
+  }
+}

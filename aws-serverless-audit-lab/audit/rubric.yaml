@@ -1,0 +1,24 @@
+schema_version: 1.0.0
+total_points: 100
+dimensions:
+  finding_identification_and_severity: 25
+  aws_service_and_event_semantics: 20
+  iam_and_permission_boundaries: 15
+  retries_failures_and_idempotency: 15
+  iac_correctness_and_lifecycle: 10
+  localstack_aws_fidelity: 10
+  remediation_and_verification: 5
+caps:
+  missed_security_or_data_loss_defect: 69
+  localstack_claimed_as_iam_proof:
+    dimension: localstack_aws_fidelity
+    maximum: 0
+required_finding_fields:
+  - rule_id
+  - severity
+  - path
+  - evidence
+  - aws_behavior
+  - impact
+  - remediation
+  - verification

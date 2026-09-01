@@ -1,0 +1,20 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  VendorSecretKey:
+    Type: String
+    Default: sk_live_committed_example
+Resources:
+  UnsafeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.12
+      Handler: app.handler
+      Environment:
+        Variables:
+          API_TOKEN: plaintext-token-example
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: '*'
+              Resource: '*'

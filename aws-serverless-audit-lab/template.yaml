@@ -1,0 +1,552 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Evidence-first AWS serverless IaC audit-job reference service
+
+Parameters:
+  Environment:
+    Type: String
+    Default: sandbox
+    AllowedPattern: '^[a-z][a-z0-9-]{1,15}$'
+  AllowedOrigin:
+    Type: String
+    Default: https://example.invalid
+    AllowedPattern: '^https://[^*]+$'
+  PermissionBoundaryArn:
+    Type: String
+    Default: ''
+    Description: Optional existing IAM permissions-boundary ARN for Lambda roles
+
+Conditions:
+  HasPermissionBoundary: !Not [!Equals [!Ref PermissionBoundaryArn, '']]
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [arm64]
+    MemorySize: 256
+    Timeout: 15
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+
+Resources:
+  AuditHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: v1
+      CorsConfiguration:
+        AllowMethods: [POST]
+        AllowHeaders: [content-type, idempotency-key]
+        AllowOrigins: [!Ref AllowedOrigin]
+        MaxAge: 600
+      Auth:
+        EnableIamAuthorizer: true
+
+  SubmissionBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireSubmissions
+            Status: Enabled
+            ExpirationInDays: 30
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 7
+
+  ReportBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ArchiveThenExpireReports
+            Status: Enabled
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+            ExpirationInDays: 90
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+
+  AuditJobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: job_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: job_id
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+
+  AuditIntakeDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId: alias/aws/sqs
+      MessageRetentionPeriod: 1209600
+
+  AuditIntakeQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId: alias/aws/sqs
+      VisibilityTimeout: 90
+      MessageRetentionPeriod: 345600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt AuditIntakeDLQ.Arn
+        maxReceiveCount: 5
+
+  StreamFailureQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId: alias/aws/sqs
+      MessageRetentionPeriod: 1209600
+
+  NotificationQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId: alias/aws/sqs
+      MessageRetentionPeriod: 345600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt NotificationDLQ.Arn
+        maxReceiveCount: 5
+
+  NotificationDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId: alias/aws/sqs
+      MessageRetentionPeriod: 1209600
+
+  SubmissionCreatedRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Route submitted SAM templates to the bounded audit intake queue
+      EventPattern:
+        source: [aws.s3]
+        detail-type: [Object Created]
+        detail:
+          bucket:
+            name: [!Ref SubmissionBucket]
+          object:
+            key:
+              - prefix: submissions/
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt AuditIntakeQueue.Arn
+          Id: AuditIntake
+          DeadLetterConfig:
+            Arn: !GetAtt AuditIntakeDLQ.Arn
+          RetryPolicy:
+            MaximumEventAgeInSeconds: 3600
+            MaximumRetryAttempts: 12
+
+  AuditIntakeQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref AuditIntakeQueue
+        - !Ref AuditIntakeDLQ
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EventBridgeExactRuleOnly
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource:
+              - !GetAtt AuditIntakeQueue.Arn
+              - !GetAtt AuditIntakeDLQ.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !GetAtt SubmissionCreatedRule.Arn
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  AuditStatusBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Sub '${AWS::StackName}-status'
+
+  AuditStatusTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: alias/aws/sns
+
+  AuditStatusRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref AuditStatusBus
+      EventPattern:
+        source: [audit-lab.jobs]
+        detail-type: [audit.status.changed]
+      State: ENABLED
+      Targets:
+        - Arn: !Ref AuditStatusTopic
+          Id: AuditStatusTopic
+
+  AuditStatusTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref AuditStatusTopic]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ExactStatusRuleOnly
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref AuditStatusTopic
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !GetAtt AuditStatusRule.Arn
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  StatusQueueSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AuditStatusTopic
+      Protocol: sqs
+      Endpoint: !GetAtt NotificationQueue.Arn
+      RawMessageDelivery: true
+
+  NotificationQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref NotificationQueue]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ExactStatusTopicOnly
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt NotificationQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref AuditStatusTopic
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  CreateAuditJobFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: create_audit_job.app.handler
+      Timeout: 10
+      ReservedConcurrentExecutions: 5
+      PermissionsBoundary: !If [HasPermissionBoundary, !Ref PermissionBoundaryArn, !Ref AWS::NoValue]
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref AuditJobsTable
+          SUBMISSION_BUCKET: !Ref SubmissionBucket
+          MAX_TEMPLATE_BYTES: '524288'
+      Policies:
+        - Statement:
+            - Sid: CreateAndReadAuditJob
+              Effect: Allow
+              Action: [dynamodb:PutItem, dynamodb:GetItem]
+              Resource: !GetAtt AuditJobsTable.Arn
+            - Sid: PresignExactSubmissionPrefix
+              Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub '${SubmissionBucket.Arn}/submissions/*'
+      Events:
+        CreateAuditJob:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AuditHttpApi
+            Path: /audit-jobs
+            Method: POST
+            Auth:
+              Authorizer: AWS_IAM
+
+  AuditStarterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: audit_starter.app.handler
+      ReservedConcurrentExecutions: 5
+      PermissionsBoundary: !If [HasPermissionBoundary, !Ref PermissionBoundaryArn, !Ref AWS::NoValue]
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN: !Ref AuditStateMachine
+          SUBMISSION_BUCKET: !Ref SubmissionBucket
+      Policies:
+        - Statement:
+            - Sid: StartExactAuditWorkflow
+              Effect: Allow
+              Action: states:StartExecution
+              Resource: !Ref AuditStateMachine
+      Events:
+        AuditQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AuditIntakeQueue.Arn
+            BatchSize: 10
+            FunctionResponseTypes: [ReportBatchItemFailures]
+            ScalingConfig:
+              MaximumConcurrency: 5
+
+  StatusPublisherFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: status_publisher.app.handler
+      ReservedConcurrentExecutions: 5
+      PermissionsBoundary: !If [HasPermissionBoundary, !Ref PermissionBoundaryArn, !Ref AWS::NoValue]
+      Environment:
+        Variables:
+          STATUS_BUS_NAME: !Ref AuditStatusBus
+      Policies:
+        - Statement:
+            - Sid: PublishOnlyToStatusBus
+              Effect: Allow
+              Action: events:PutEvents
+              Resource: !GetAtt AuditStatusBus.Arn
+            - Sid: QuarantineFailedStreamBatches
+              Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt StreamFailureQueue.Arn
+      Events:
+        JobStatusStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt AuditJobsTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            BisectBatchOnFunctionError: true
+            MaximumRetryAttempts: 3
+            MaximumRecordAgeInSeconds: 3600
+            FunctionResponseTypes: [ReportBatchItemFailures]
+            DestinationConfig:
+              OnFailure:
+                Type: SQS
+                Destination: !GetAtt StreamFailureQueue.Arn
+
+  ValidateSubmissionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src.workflow_tasks.app.validate_submission
+      ReservedConcurrentExecutions: 5
+      PermissionsBoundary: !If [HasPermissionBoundary, !Ref PermissionBoundaryArn, !Ref AWS::NoValue]
+      Environment:
+        Variables:
+          MAX_TEMPLATE_BYTES: '524288'
+          SUBMISSION_BUCKET: !Ref SubmissionBucket
+          JOBS_TABLE: !Ref AuditJobsTable
+      Policies:
+        - Statement:
+            - Sid: ReadSubmittedTemplate
+              Effect: Allow
+              Action: [s3:GetObject, s3:GetObjectVersion]
+              Resource: !Sub '${SubmissionBucket.Arn}/submissions/*'
+            - Sid: StartExistingAuditJob
+              Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt AuditJobsTable.Arn
+
+  RunAuditFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src.workflow_tasks.app.run_audit
+      Timeout: 30
+      ReservedConcurrentExecutions: 5
+      PermissionsBoundary: !If [HasPermissionBoundary, !Ref PermissionBoundaryArn, !Ref AWS::NoValue]
+      Environment:
+        Variables:
+          MAX_TEMPLATE_BYTES: '524288'
+          SUBMISSION_BUCKET: !Ref SubmissionBucket
+      Policies:
+        - Statement:
+            - Sid: ReadSubmittedTemplateForAudit
+              Effect: Allow
+              Action: [s3:GetObject, s3:GetObjectVersion]
+              Resource: !Sub '${SubmissionBucket.Arn}/submissions/*'
+
+  PersistReportFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src.workflow_tasks.app.persist_report
+      ReservedConcurrentExecutions: 5
+      PermissionsBoundary: !If [HasPermissionBoundary, !Ref PermissionBoundaryArn, !Ref AWS::NoValue]
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref AuditJobsTable
+          REPORT_BUCKET: !Ref ReportBucket
+      Policies:
+        - Statement:
+            - Sid: WriteContentAddressedReports
+              Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub '${ReportBucket.Arn}/reports/*'
+            - Sid: CompleteExistingJob
+              Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt AuditJobsTable.Arn
+
+  MarkFailedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src.workflow_tasks.app.mark_failed
+      ReservedConcurrentExecutions: 5
+      PermissionsBoundary: !If [HasPermissionBoundary, !Ref PermissionBoundaryArn, !Ref AWS::NoValue]
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref AuditJobsTable
+      Policies:
+        - Statement:
+            - Sid: FailExistingJob
+              Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt AuditJobsTable.Arn
+
+  AuditStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+
+  AuditStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: STANDARD
+      DefinitionUri: statemachines/audit.asl.json
+      DefinitionSubstitutions:
+        ValidateSubmissionArn: !GetAtt ValidateSubmissionFunction.Arn
+        RunAuditArn: !GetAtt RunAuditFunction.Arn
+        PersistReportArn: !GetAtt PersistReportFunction.Arn
+        MarkFailedArn: !GetAtt MarkFailedFunction.Arn
+      Tracing:
+        Enabled: true
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt AuditStateMachineLogGroup.Arn
+        IncludeExecutionData: false
+        Level: ERROR
+      Policies:
+        - Statement:
+            - Sid: InvokeExactAuditStages
+              Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource:
+                - !GetAtt ValidateSubmissionFunction.Arn
+                - !GetAtt RunAuditFunction.Arn
+                - !GetAtt PersistReportFunction.Arn
+                - !GetAtt MarkFailedFunction.Arn
+            - Sid: StepFunctionsLogDelivery
+              Effect: Allow
+              Action:
+                - logs:CreateLogDelivery
+                - logs:GetLogDelivery
+                - logs:UpdateLogDelivery
+                - logs:DeleteLogDelivery
+                - logs:ListLogDeliveries
+                - logs:PutResourcePolicy
+                - logs:DescribeResourcePolicies
+                - logs:DescribeLogGroups
+              Resource: '*'
+
+  AuditIntakeDLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Audit intake messages entered quarantine
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt AuditIntakeDLQ.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  StreamFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: DynamoDB Streams records entered quarantine
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt StreamFailureQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  WorkflowFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Audit workflow execution failed
+      Namespace: AWS/States
+      MetricName: ExecutionsFailed
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !Ref AuditStateMachine
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+Outputs:
+  AuditJobsUrl:
+    Value: !Sub 'https://${AuditHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/v1/audit-jobs'
+  AuditJobsTableName:
+    Value: !Ref AuditJobsTable
+  SubmissionBucketName:
+    Value: !Ref SubmissionBucket
+  ReportBucketName:
+    Value: !Ref ReportBucket
+  AuditStateMachineArn:
+    Value: !Ref AuditStateMachine
+  AuditStatusTopicArn:
+    Value: !Ref AuditStatusTopic

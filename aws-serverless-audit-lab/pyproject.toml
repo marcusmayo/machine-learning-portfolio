@@ -1,0 +1,29 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --disable-warnings --strict-markers"
+pythonpath = [".", "src"]
+markers = [
+  "localstack: requires a running LocalStack instance",
+  "aws: requires an isolated real-AWS sandbox",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["E501", "S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S105", "S106"]
+"task_cases/**/*.py" = ["S105", "S106"]
+"src/workflow_tasks/app.py" = ["S108"]
+
+[tool.coverage.run]
+branch = true
+source = ["audit", "src"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
