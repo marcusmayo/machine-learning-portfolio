@@ -1,6 +1,0 @@
-decision: FAIL
-required_rule_ids: [IAM001, IAM002, SEC001, SEC002]
-fidelity:
-  static: VERIFIED
-  localstack_iam: UNVERIFIED
-  real_aws: NOT_RUN

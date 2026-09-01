@@ -1,6 +1,0 @@
-decision: FAIL
-required_rule_ids: [API001]
-evidence_classification:
-  successful_local_request: LOCAL_PASS_CLOUD_UNVERIFIED
-  iam_authorization: NOT_RUN
-  required_canary: unsigned_request_is_denied_in_real_aws
